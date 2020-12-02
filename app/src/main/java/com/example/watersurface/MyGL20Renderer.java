@@ -177,8 +177,70 @@ class MyGL20Renderer implements GLSurfaceView.Renderer {
         MyTimer();
         NioBuff();
     }
+    public void onSurfaceCreated(GL10 unused, EGLConfig config) {
+    GLES20.glEnable(GLES20.GL_DEPTH_TEST);
+    GLES20.glEnable(GLES20.GL_CULL_FACE);
+    GLES20.glHint(GLES20.GL_GENERATE_MIPMAP_HINT, GLES20.GL_NICEST);
 
-    
+    String vertexShaderCode=
+    "uniform mat4 u_modelViewProjectionMatrix;"+
+    "attribute vec3 a_vertex;"+
+    "attribute vec3 a_normal;"+
+    "varying vec3 v_vertex;"+
+    "varying vec3 v_normal;"+
+    "void main() {"+
+    "v_vertex=a_vertex;"+
+    "vec3 n_normal=normalize(a_normal);"+
+    "v_normal=n_normal;"+
+    "gl_Position = u_modelViewProjectionMatrix * vec4(a_vertex,1.0);"+
+    "}";
+    String fragmentShaderCode=
+    "precision mediump float;"+
+    "uniform vec3 u_camera;"+
+    "uniform vec3 u_lightPosition;"+
+    "uniform sampler2D u_texture0;"+
+    "varying vec3 v_vertex;"+
+    "varying vec3 v_normal;"+
+    "vec3 myrefract(vec3 IN, vec3 NORMAL, float k){"+
+    "float nv=dot(NORMAL,IN);"+
+    "float v2 = dot(IN,IN);"+
+    "float knormal=(sqrt(((k*k-1.0)*v2)/(nv*nv)+1.0)-1.0)* nv;"+
+    "vec3 OUT = IN + (knormal * NORMAL);"+
+    "return OUT;"+
+    "}"+
+    "void main() {"+
+    "vec3 n_normal=normalize(v_normal);"+
+    "vec3 lightvector = normalize(u_lightPosition - v_vertex);"+
+    "vec3 lookvector = normalize(u_camera - v_vertex);"+
+    "float ambient=0.1;"+
+    "float k_diffuse=0.7;"+
+    "float k_specular=0.3;"+
+    "float diffuse = k_diffuse * max(dot(n_normal, lightvector), 0.0);"+
+    "vec3 reflectvector = reflect(-lightvector, n_normal);"+
+    "float specular = k_specular * pow( max(dot(lookvector,reflectvector),0.0), 40.0 );"+
+    "vec4 one=vec4(1.0,1.0,1.0,1.0);"+
+    "vec4 lightColor=(ambient+diffuse+specular)*one;"+
+
+    "vec3 OUT=myrefract(-lookvector, n_normal, 1.0);"+
+    "float ybottom=-1.0;"+
+    "float xbottom=v_vertex.x+OUT.x*(ybottom-v_vertex.y)/OUT.y;"+
+    "float zbottom=v_vertex.z+OUT.z*(ybottom-v_vertex.y)/OUT.y;"+
+    "vec2 texCoord = vec2(0.5*xbottom,0.5*zbottom);"+
+    "vec4 textureColor=texture2D(u_texture0, texCoord);"+
+    "gl_FragColor=lightColor*textureColor;"+
+    "}";
+
+    mTexture0=new Texture(context,R.drawable.i);
+    mShader=new Shader(vertexShaderCode, fragmentShaderCode);
+    mShader.linkVertexBuffer(f);
+    mShader.linkNormalBuffer(f);
+    mShader.linkTexture(mTexture0, null);
+
+    mShader.linkModelViewProjectionMatrix(modelViewProjectionMatrix);
+    mShader.linkCamera(xСamera, yCamera, zCamera);
+    mShader.linkLightSource(xLightPosition, yLightPosition, zLightPosition);
+
+    }    
 
     public void onDrawFrame(GL10 unused) {
 
